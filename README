@@ -1,0 +1,57 @@
+Dinuta Eduard-Stefan 331CA
+
+Tema 3 APD - Protocolul BitTorrent
+--------------------------
+    Pentru aceasta tema am implementat protocolului BitTorrent, realizand
+atat logica pentru tracker cat si pentru clienti, folosind biblioteca MPI.
+Fiecare proces este un client, mai putin cel cu rangul 0 care este trackerul.
+    Pentru implementarea pasilor protocolului BitTorrent am folosit o serie
+de semnale pentru comunicarea intre procese:
+- ACK: mesaj de confirmare, folosit pentru a simula descarcarea unui segment
+de la un peer/seed sau pentru a semnala clientilor ca pot incepe descarcarea
+- REQ: mesaj de request, cand este trimis trackerului este folosit pentru a
+cere lista de peers/seeds pentru un fisier, iar cand este trimis altui client
+este folosit pentru a cere un segment
+- SEG: semnifica transmiterea unui segment, folosit in transferul de fisiere
+intre tracker si clienti
+- EOM: semnifica sfarsitul transmiterii de segmente, folosit la actualizarea
+trackerului sau la trimiterea liste de peers/seeds
+- UPD: semnal trimis trackerului de catre un client, semnifica trimiterea
+ulterioara a unui update al segmentelor detinute
+- FIN: semnal trimis de catre un client trackerului cand a terminat de
+descarcat un fisier pentru a fi adaugat la seeds
+- END: semnal trimis de fisiere trackerului cand au terminat de descarcat
+toate fisierele, si de tracker clientilor cand toti au terminat de descarcat
+pentru a inchide functia de upload
+    La trimiterea de semnale intre clienti puteau aparea uneori probleme, mai
+ales in functia de upload deoarece se primea de la orice sursa dar nu trebuiau
+primite semnale de la tracker pentru ca acesta nu cere segmente. De aceea
+semnalele trimise de clienti folosesc tagul 1, iar restul transmisiilor tagul 0.
+    Programul urmeaza regulile protocolului BitTorrent descrise in enunt.
+Un peer functioneaza in urmatorul mod:
+- citeste de pe disc fisierele pe care le detine si trimite trackerului 
+hashurile
+- asteapta de la tracker confirmarea ca a primit toate informatiile, apoi
+porneste threadurile de download si upload
+- in download, este descarcat pe rand fiecare fisier dorit. La inceput si 
+la fiecare 10 fisiere descarcate se cere trackerului lista actualizata
+de peers/seeds de la care se poate descarca fisierul si se trimit noile
+segmente detinute de client. Pentru alegerea procesului de la care se face
+decarcarea unui segment se tine un contor pentru fiecare fisier care arata
+de cate ori a fost folosit fiecare client pentru a obtine segmente. De fiecare
+data se alege clientul cu contorul cel mai mic. Dupa descarcarea unui fisier,
+se semnaleaza acest lucru trackerului pentru a fi adaugat la seeds si se scrie
+fisierul pe disk. Dupa descarcarea tuturor fisierelor se anunta trackerul si 
+functia se inchide.
+- in upload se asteapta mesaje de la alti clienti, pana la primirea semnalului
+de inchidere de la tracker. La primirea unui request de la un client, se
+simuleaza descarcarea segmentului prin trimiterea unui ACK
+    Trackerul functioneaza in urmatorul mod:
+- primeste toate fisierel detinute de clienti, construind o baza de date a
+acestora si o lista de swarms pentru fiecare fisier si seeds
+- dupa ce a primit toate informatiile semnaleaza clientilor ca pot descarca
+- cat timp mai sunt clienti care descarca primeste cereri de la ei si raspunde
+corespunzator, in functie de semnalul primit, descris mai sus
+- cand toti clientii au terminat de descarcat trimite un mesaj de inchidere
+pentru a opri functia de upload a fiecarui client, iar trackerul se inchide
+    
